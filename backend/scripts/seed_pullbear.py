@@ -9,25 +9,24 @@ Usage:
 This script:
 1. Creates the 'pullbear' tenant if it doesn't exist
 2. Loads products from data/pullbear_catalog.json
-3. Runs them through the ingestion pipeline (normalize, enrich, embed)
+3. Runs them through the ingestion pipeline (normalize, embed)
 4. Stores them in Supabase and Qdrant
 """
 
-import asyncio
 import json
-import os
 import sys
 from pathlib import Path
 
 # Add the backend app to the path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from app.services.db_service import DBService
+from app.services.db_service import DatabaseService
 from app.services.vector_service import VectorService
+from app.schemas.product import ProductRaw
 from app.services.ingestion import IngestionPipeline, create_fast_pipeline
 
 
-async def main():
+def main():
     """Load Pull & Bear catalog into the system."""
 
     # Load catalog
@@ -42,79 +41,140 @@ async def main():
     print(f"Loaded {len(products)} products from {catalog_path.name}")
 
     # Initialize services
-    db = DBService()
+    db = DatabaseService()
     vector = VectorService()
 
-    # Create tenant if needed
     tenant_id = "pullbear"
+
+    # Check/create tenant
+    print(f"\nChecking tenant '{tenant_id}'...")
     try:
-        # Check if tenant exists by trying to get products
-        existing = await db.get_products(tenant_id, limit=1)
-        print(f"Tenant '{tenant_id}' exists with existing products")
-    except Exception:
-        # Create tenant
-        print(f"Creating tenant '{tenant_id}'...")
-        await db.supabase.table("tenants").insert({
-            "id": tenant_id,
-            "name": "Pull & Bear",
-            "config": {"description": "Pull & Bear fashion demo store"},
-            "plan": "free"
-        }).execute()
-        print(f"Tenant '{tenant_id}' created")
+        result = db.client.table("tenants").select("id").eq("id", tenant_id).execute()
+        if not result.data:
+            print(f"Creating tenant '{tenant_id}'...")
+            # Use only columns that exist in the current schema
+            db.client.table("tenants").insert({
+                "id": tenant_id,
+                "name": "Pull & Bear",
+                "config": {"description": "Pull & Bear fashion demo store"},
+            }).execute()
+            print(f"Tenant '{tenant_id}' created")
+        else:
+            print(f"Tenant '{tenant_id}' exists")
+    except Exception as e:
+        print(f"Warning: Could not verify tenant: {e}")
 
     # Create ingestion pipeline (fast mode - no LLM enrichment)
-    pipeline = create_fast_pipeline(db, vector)
+    pipeline = create_fast_pipeline()
 
-    # Transform products to expected format
+    # Transform products to ProductRaw objects
     raw_products = []
     for p in products:
-        raw_products.append({
-            "id": p["id"],
-            "name": p["name"],
-            "description": p.get("description", ""),
-            "price": p.get("price", 0),
-            "category": p.get("category", ""),
-            "image_url": p.get("image_url"),
-            "brand": p.get("brand", "Pull & Bear"),
-            "tags": p.get("tags", "").split(",") if isinstance(p.get("tags"), str) else [],
-        })
+        tags = p.get("tags", "")
+        if isinstance(tags, str):
+            tags = [t.strip() for t in tags.split(",") if t.strip()]
+
+        raw = ProductRaw(
+            id=p["id"],
+            name=p["name"],
+            description=p.get("description", ""),
+            price=float(p.get("price", 0)),
+            categories=[p.get("category", "")] if p.get("category") else [],
+            image_url=p.get("image_url"),
+            brand=p.get("brand", "Pull & Bear"),
+            tags=tags,
+            stock_status="instock",
+        )
+        raw_products.append(raw)
 
     print(f"\nProcessing {len(raw_products)} products through ingestion pipeline...")
     print("(This may take a few minutes for embedding generation)\n")
 
-    # Process in batches
-    batch_size = 10
-    total_success = 0
-    total_failed = 0
+    # Process through pipeline
+    def progress_callback(processed, total):
+        print(f"  Normalizing: {processed}/{total}")
 
-    for i in range(0, len(raw_products), batch_size):
-        batch = raw_products[i:i + batch_size]
-        batch_num = i // batch_size + 1
-        total_batches = (len(raw_products) + batch_size - 1) // batch_size
+    result = pipeline.process(raw_products, tenant_id, progress_callback=progress_callback)
 
-        print(f"Processing batch {batch_num}/{total_batches}...")
+    print(f"\nPipeline complete:")
+    print(f"  - Total: {result.total}")
+    print(f"  - Successful: {result.successful}")
+    print(f"  - Failed: {result.failed}")
 
-        result = await pipeline.process_batch(batch, tenant_id)
+    if result.errors:
+        print(f"\nErrors:")
+        for error in result.errors[:5]:
+            print(f"  - {error}")
 
-        total_success += result.successful
-        total_failed += result.failed
+    if not result.products:
+        print("\nNo products to store!")
+        sys.exit(1)
 
-        print(f"  - Success: {result.successful}, Failed: {result.failed}")
-        if result.errors:
-            for error in result.errors[:3]:  # Show first 3 errors
-                print(f"  - Error: {error}")
+    # Store in database
+    print(f"\nStoring {len(result.products)} products in Supabase...")
+    # Convert to simpler format compatible with existing schema
+    products_data = []
+    for p in result.products:
+        products_data.append({
+            "tenant_id": p.tenant_id,
+            "id": p.external_id,  # upsert_products_batch adds tenant prefix
+            "name": p.name,
+            "slug": p.slug,
+            "sku": p.sku or "",
+            "price": p.price,
+            "regular_price": p.regular_price or p.price,
+            "sale_price": p.sale_price,
+            "stock_status": p.stock_status,
+            "stock_quantity": p.stock_quantity,
+            "description": p.description or "",
+            "short_description": p.short_description or "",
+            "categories": p.categories,
+            "image_url": p.image_url,
+            "permalink": p.permalink or "",
+        })
+    db_count = db.upsert_products_batch(products_data)
+    print(f"  - Stored {db_count} products in database")
+
+    # Store in vector database
+    print(f"\nGenerating embeddings and storing in Qdrant...")
+
+    # Prepare for vector storage (format expected by VectorService)
+    vector_products = []
+    for p in result.products:
+        vector_products.append({
+            "id": p.external_id,
+            "tenant_id": p.tenant_id,
+            "name": p.name,
+            "short_description": p.short_description or p.description[:200] if p.description else "",
+            "price": p.price,
+            "image_url": p.image_url,
+            "permalink": p.permalink or "",
+            "categories": p.categories,
+            "stock_status": p.stock_status,
+            "combined_text": p.embedding_text,  # Use the pre-built embedding text
+        })
+
+    # Generate embeddings and upsert
+    try:
+        vector_count = vector.upsert_products_batch(vector_products)
+        print(f"  - Stored {vector_count} products in vector database")
+    except Exception as e:
+        print(f"  - Warning: Vector storage failed: {e}")
+        print("    (Products are in Supabase, but vector search won't work)")
 
     print(f"\n{'='*50}")
     print(f"Seeding complete!")
-    print(f"  Total processed: {len(raw_products)}")
-    print(f"  Successful: {total_success}")
-    print(f"  Failed: {total_failed}")
+    print(f"  Tenant: {tenant_id}")
+    print(f"  Products in DB: {db_count}")
     print(f"{'='*50}")
 
-    # Verify products in database
-    products_in_db = await db.get_products(tenant_id, limit=100)
-    print(f"\nVerification: {len(products_in_db)} products now in database for tenant '{tenant_id}'")
+    # Verify
+    print(f"\nVerification:")
+    products_in_db = db.get_products(tenant_id, limit=5)
+    print(f"  First 5 products:")
+    for p in products_in_db:
+        print(f"    - {p['name']} (${p['price']})")
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    main()
