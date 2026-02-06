@@ -1,72 +1,59 @@
 # Sift Retail AI v2
 
-A comprehensive retail AI platform featuring:
-- **Semantic Discovery Engine**: Vector search to understand customer intent
-- **Catalog Crawler**: Polite web scraper for WooCommerce stores
-- **Demo Storefront**: Van Leeuwen-inspired UI with extracted design tokens
+A multi-tenant SaaS platform for AI-powered product discovery.
 
-## Features
+## Core Features
 
-### Sift Retail AI (Backend + Frontend)
-- **Vector Search**: Semantic product discovery using OpenAI embeddings
-- **Zero Hallucination**: RAG-powered responses constrained to your catalog
-- **Multi-Tenant Security**: Hard metadata filtering for complete data isolation
-- **WooCommerce Integration**: Sync products from WooCommerce stores
-- **ROI Analytics**: Track searches and identify demand gaps
-
-### Catalog Crawler
-- **Polite Crawling**: Configurable rate limiting, delays, and retries
-- **Resume Capability**: Save/restore state for interrupted crawls
-- **Rich Extraction**: Products, images, categories, ingredients, allergens
-- **Multiple Outputs**: JSONL, CSV, and summary reports
-
-### Demo Storefront (UI)
-- **Van Leeuwen-inspired Design**: Extracted color palette and typography
-- **Responsive Layout**: Mobile-first, accessible components
-- **Product Catalog**: Search, filter, sort, and product detail pages
+- **Semantic Search** - Natural language product search with query understanding
+- **AI Chat Assistant** - Multi-turn shopping conversations
+- **Multi-Tenant** - Complete data isolation between retailers
+- **Catalog Ingestion** - CSV/JSON upload, WooCommerce sync, API connectors
+- **LLM Enrichment** - Automatic attribute extraction (color, material, style)
+- **Analytics Dashboard** - Search metrics, zero-result queries, click tracking
+- **Embeddable Widgets** - Drop-in search bar and chat widgets
 
 ## Tech Stack
 
 | Component | Technology |
 |-----------|------------|
-| AI Backend | FastAPI (Python) |
-| AI Frontend | Next.js + Tailwind |
-| Vector DB | Qdrant |
-| Relational DB | Supabase (Postgres) |
-| AI Models | OpenAI (GPT-4o, Embeddings) |
-| Crawler | Python + httpx + BeautifulSoup |
-| Demo UI | Next.js + Tailwind (no UI kits) |
+| Backend API | FastAPI (Python 3.12, uv) |
+| Frontend Dashboard | Next.js 16 + Tailwind |
+| Vector Database | Qdrant |
+| Relational Database | Supabase (Postgres) |
+| AI/ML | OpenAI (GPT-4o, text-embedding-3-small) |
+| Deployment | Railway |
 
 ## Project Structure
 
 ```
 siftopsv2/
-├── backend/              # Sift AI FastAPI backend
+├── backend/                    # FastAPI backend
 │   ├── app/
-│   │   ├── main.py       # Entry point
-│   │   ├── routes/       # API endpoints
-│   │   ├── services/     # Business logic
-│   │   └── core/         # Configuration
-│   ├── scripts/          # Ingestion scripts
-│   └── data/             # Sample data
-├── frontend/             # Sift AI admin/demo frontend
-│   └── src/
-├── catalog_crawler/      # WooCommerce catalog scraper
-│   ├── catalog_crawler/
-│   │   ├── crawler.py    # Main crawler
-│   │   ├── parsers/      # HTML parsers
-│   │   └── models/       # Pydantic models
-│   └── tests/
-├── ui/                   # Van Leeuwen demo storefront
+│   │   ├── main.py            # Entry point
+│   │   ├── core/              # Configuration
+│   │   ├── routes/            # API endpoints (search, chat, admin)
+│   │   ├── services/          # Business logic
+│   │   │   ├── ingestion/     # Pipeline (normalize, enrich, embed)
+│   │   │   ├── vector_service.py
+│   │   │   ├── db_service.py
+│   │   │   ├── query_service.py
+│   │   │   └── job_service.py
+│   │   └── schemas/           # Pydantic models
+│   ├── scripts/               # Utility scripts
+│   └── data/                  # Sample data
+├── frontend/                   # Next.js dashboard
 │   ├── src/
-│   │   ├── app/          # Next.js pages
-│   │   ├── components/   # React components
-│   │   └── lib/          # Data utilities
-│   └── theme/            # Extracted design tokens
-├── scripts/              # Utility scripts
-│   ├── extract_theme_tokens.py
-│   └── export_for_ui.py
-└── supabase/             # Database schema
+│   │   ├── app/
+│   │   │   ├── admin/         # Dashboard pages
+│   │   │   └── shop-demo/     # Demo storefront
+│   │   ├── components/        # UI components
+│   │   └── lib/               # API client
+│   └── public/
+│       ├── sift-search-widget.js
+│       └── sift-chat-widget.js
+├── supabase/
+│   └── schema.sql             # Database schema
+└── ui/                        # Demo storefront (Van Leeuwen)
 ```
 
 ## Quick Start
@@ -75,13 +62,10 @@ siftopsv2/
 
 ```bash
 cd backend
-
-# Create environment file
 cp .env.example .env
 # Edit .env with your API keys
 
 # Install dependencies
-source ~/.local/bin/env  # if uv not in PATH
 uv sync
 
 # Run the server
@@ -92,27 +76,27 @@ uv run uvicorn app.main:app --reload --port 8000
 
 ```bash
 cd frontend
-
-# Create environment file
 cp .env.example .env.local
+# Edit .env.local with NEXT_PUBLIC_API_URL=http://localhost:8000
 
-# Install dependencies
 npm install
-
-# Run the dev server
 npm run dev
 ```
 
 ### 3. Database Setup
 
 1. Create a [Supabase](https://supabase.com) project
-2. Run the SQL in `supabase/schema.sql` in the SQL Editor
-3. Copy your URL and anon key to `backend/.env`
+2. Run `supabase/schema.sql` in the SQL Editor
+3. Copy URL and anon key to `backend/.env`
 
-### 4. Vector Database Setup
+### 4. Qdrant Setup
 
+**Option A: Qdrant Cloud (Recommended)**
 1. Create a [Qdrant Cloud](https://cloud.qdrant.io) cluster
-2. Copy your URL and API key to `backend/.env`
+2. Copy URL and API key to `backend/.env`
+
+**Option B: Local (In-Memory)**
+- The backend falls back to in-memory Qdrant if not configured
 
 ## Environment Variables
 
@@ -124,7 +108,9 @@ QDRANT_URL=https://xxx.cloud.qdrant.io:6333
 QDRANT_API_KEY=...
 SUPABASE_URL=https://xxx.supabase.co
 SUPABASE_KEY=...
-WOOCOMMERCE_URL=https://vanleeuwenicecream.com
+
+# Optional: WooCommerce defaults
+WOOCOMMERCE_URL=https://mystore.com
 WOOCOMMERCE_CONSUMER_KEY=ck_...
 WOOCOMMERCE_CONSUMER_SECRET=cs_...
 ```
@@ -138,178 +124,190 @@ NEXT_PUBLIC_API_URL=http://localhost:8000
 ## API Endpoints
 
 ### Search
+
 ```bash
+# Semantic search with query understanding
 POST /search/
 {
-  "query": "something refreshing for summer",
-  "tenant_id": "vanleeuwen",
-  "top_k": 5
+  "query": "blue dress under $50",
+  "tenant_id": "demo",
+  "top_k": 5,
+  "use_query_understanding": true
+}
+
+# Response includes parsed constraints
+{
+  "results": [...],
+  "count": 5,
+  "query_understanding": {
+    "budget_max": 50,
+    "color": "blue",
+    "category": "dress"
+  },
+  "search_event_id": 123,
+  "latency_ms": 150
 }
 ```
 
 ### Chat
+
 ```bash
 POST /chat/
 {
-  "message": "What's your best vegan option?",
-  "tenant_id": "vanleeuwen",
-  "store_name": "Van Leeuwen"
+  "message": "I need a gift for my mom",
+  "tenant_id": "demo",
+  "store_name": "Demo Store"
+}
+```
+
+### Admin - Upload Products
+
+```bash
+# CSV/JSON upload
+POST /admin/upload
+Content-Type: multipart/form-data
+file: products.csv
+tenant_id: demo
+enrich_attributes: false
+
+# Returns job_id for tracking
+{
+  "success": true,
+  "job_id": "uuid",
+  "products_queued": 100,
+  "message": "Check /admin/jobs/demo/uuid for status"
 }
 ```
 
 ### Admin - WooCommerce Sync
+
 ```bash
 POST /admin/sync/woocommerce
 {
-  "tenant_id": "vanleeuwen",
-  "woocommerce_url": "https://vanleeuwenicecream.com",
+  "tenant_id": "demo",
+  "woocommerce_url": "https://mystore.com",
   "consumer_key": "ck_...",
-  "consumer_secret": "cs_..."
+  "consumer_secret": "cs_...",
+  "enrich_attributes": true
 }
 ```
 
-### Admin - CSV Upload
+### Admin - Jobs
+
 ```bash
-POST /admin/upload
-Content-Type: multipart/form-data
-file: products.csv
-tenant_id: vanleeuwen
+# List jobs
+GET /admin/jobs/{tenant_id}
+
+# Get job status
+GET /admin/jobs/{tenant_id}/{job_id}
 ```
 
-## Deployment
+### Admin - API Keys
 
-### Backend (Render)
-1. Connect GitHub repo
-2. Set base directory to `backend`
-3. Build command: `pip install uv && uv sync`
-4. Start command: `uv run uvicorn app.main:app --host 0.0.0.0 --port $PORT`
-5. Add environment variables
+```bash
+# Create API key for widgets
+POST /admin/api-keys/{tenant_id}?name=Production
 
-### Frontend (Vercel)
-1. Connect GitHub repo
-2. Set root directory to `frontend`
-3. Set `NEXT_PUBLIC_API_URL` to your Render URL
+# List keys
+GET /admin/api-keys/{tenant_id}
 
-## WooCommerce Setup
+# Revoke key
+DELETE /admin/api-keys/{key_id}
+```
 
-To get WooCommerce API keys:
-1. Go to WooCommerce > Settings > Advanced > REST API
-2. Add key with Read permissions
-3. Copy Consumer Key and Secret
+### Admin - Analytics
+
+```bash
+GET /admin/analytics/{tenant_id}?days=30
+```
+
+## Widget Integration
+
+### Search Widget
+
+Add to your website:
+
+```html
+<div id="sift-search"></div>
+<script
+  src="https://your-deployment/sift-search-widget.js"
+  data-api-key="sk_live_..."
+  data-tenant-id="your-tenant"
+  data-container="#sift-search"
+  data-theme="light"
+></script>
+```
+
+### Chat Widget
+
+Add to your website:
+
+```html
+<script
+  src="https://your-deployment/sift-chat-widget.js"
+  data-api-key="sk_live_..."
+  data-tenant-id="your-tenant"
+  data-store-name="Your Store"
+  data-position="bottom-right"
+  data-primary-color="#000000"
+></script>
+```
+
+## Ingestion Pipeline
+
+The pipeline processes products through these stages:
+
+1. **Normalize** - Clean HTML, standardize prices, generate slugs
+2. **Enrich** (optional) - LLM extracts attributes (color, material, style) with confidence scores
+3. **Build Embedding Text** - Deterministic "product card" for consistent embeddings
+4. **Vectorize** - Generate embeddings with OpenAI
+5. **Store** - Upsert to Supabase (truth) + Qdrant (vectors)
+
+### CSV Format
+
+```csv
+name,description,price,category,image_url,sku,brand
+"Blue Cotton Dress","A beautiful summer dress...",49.99,Dresses,https://...,SKU001,MyBrand
+```
+
+## Database Schema
+
+Key tables:
+
+- `tenants` - Retailer accounts with plans/limits
+- `products` - Source of truth for product data
+- `product_attributes` - LLM-derived attributes with confidence
+- `connectors` - Catalog source configurations
+- `ingestion_jobs` - Job tracking for async ingestion
+- `api_keys` - Per-tenant widget authentication
+- `search_events` - Full search analytics with clicks
+- `zero_result_queries` - Demand signals
+
+## Deployment (Railway)
+
+1. Create Railway project
+2. Add services:
+   - **api**: FastAPI backend
+   - **frontend**: Next.js dashboard
+   - **qdrant**: Qdrant container (optional, can use Qdrant Cloud)
+
+3. Environment variables:
+   - Set all backend env vars in api service
+   - Set `NEXT_PUBLIC_API_URL` in frontend service
+
+4. Build commands:
+   - api: `pip install uv && uv sync`
+   - api start: `uv run uvicorn app.main:app --host 0.0.0.0 --port $PORT`
+   - frontend: `npm install && npm run build`
+   - frontend start: `npm start`
 
 ## Security
 
-- **Tenant Isolation**: All queries include a hard `tenant_id` filter at the database level
-- **RAG Guardrails**: LLM can only reference retrieved products
-- **No Data Leakage**: Cross-tenant access is impossible by design
+- **Tenant Isolation**: All queries include hard `tenant_id` filters at database level
+- **API Keys**: Hashed storage, scoped permissions, revocable
+- **RAG Guardrails**: LLM can only reference retrieved products (zero hallucination)
+- **RLS**: Row-level security enabled on all tables
 
 ---
 
-## Catalog Crawler
-
-A polite web scraper for WooCommerce storefronts.
-
-### Usage
-
-```bash
-cd catalog_crawler
-pip install -e .
-
-# Crawl Van Leeuwen store
-python -m catalog_crawler \
-  --base-url https://vanleeuwenicecream.com \
-  --start /store/ \
-  --out ./out \
-  --concurrency 5 \
-  --delay 0.5
-```
-
-### Output
-
-```
-out/
-├── catalog.jsonl    # Products (one JSON per line)
-├── catalog.csv      # Products in CSV format
-└── report.json      # Crawl statistics
-```
-
-See [catalog_crawler/README.md](catalog_crawler/README.md) for full documentation.
-
----
-
-## Demo Storefront (UI)
-
-A Van Leeuwen-inspired storefront that displays crawled catalog data.
-
-### Setup
-
-```bash
-# Extract theme tokens from the source site
-python scripts/extract_theme_tokens.py \
-  --url https://vanleeuwenicecream.com \
-  --output ui/theme/tokens.json
-
-# Convert crawler output for UI
-python scripts/export_for_ui.py \
-  --input out/catalog.jsonl \
-  --output ui/public/catalog.json
-
-# Run the UI
-cd ui
-npm install
-npm run dev
-```
-
-### Design System
-
-The UI uses a tokenized theme that mimics Van Leeuwen's aesthetic:
-
-| Token | Value | Description |
-|-------|-------|-------------|
-| Primary | `#1a1a1a` | Main text, buttons |
-| Secondary | `#f5e6d3` | Warm cream background |
-| Accent | `#c9a87c` | Gold highlights |
-| Font Heading | Playfair Display | Elegant serif |
-| Font Body | Inter | Clean sans-serif |
-
-Tokens are stored in `ui/theme/tokens.json` and can be manually adjusted.
-
-### Pages
-
-- `/` - Home with hero and featured products
-- `/shop` - Product listing with search, filter, sort
-- `/product/[slug]` - Product detail with gallery
-
-### How Tokens Are Extracted
-
-The `extract_theme_tokens.py` script:
-
-1. Fetches the homepage HTML
-2. Downloads linked CSS files
-3. Parses CSS variables and computed styles
-4. Extracts colors, fonts, spacing, shadows
-5. Categorizes values (primary, background, text, etc.)
-6. Outputs `tokens.json` and Tailwind config extension
-
-**Note**: Extracted tokens are approximations. Some values are manually refined to better capture the brand feel.
-
-### Adjusting Tokens
-
-Edit `ui/theme/tokens.json` to customize:
-
-```json
-{
-  "colors": {
-    "primary": ["#1a1a1a"],
-    "secondary": ["#f5e6d3"]
-  },
-  "typography": {
-    "fontFamilies": {
-      "heading": "'Playfair Display', serif",
-      "body": "'Inter', sans-serif"
-    }
-  }
-}
-```
-
-Then update `ui/src/app/globals.css` CSS variables to match.
+Built for the Venture bootcamp.
