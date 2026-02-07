@@ -4,6 +4,7 @@ Handles semantic search endpoints with tenant isolation and query understanding.
 Includes security: injection detection, input sanitization.
 """
 
+import re
 import time
 import logging
 from fastapi import APIRouter, HTTPException, Header
@@ -161,26 +162,33 @@ async def search_products(request: SearchRequest):
                     if not cat_match:
                         continue
 
-                # Color filter
+                # Color filter (word boundary to avoid "red" matching "coloured")
                 color_constraint = (constraints_dict.get("color") or "").lower()
-                if color_constraint and color_constraint not in product_text:
+                if color_constraint and not re.search(rf"\b{re.escape(color_constraint)}\b", product_text):
                     continue
 
-                # Material filter
+                # Material filter (word boundary)
                 material_constraint = (constraints_dict.get("material") or "").lower()
-                if material_constraint and material_constraint not in product_text:
+                if material_constraint and not re.search(rf"\b{re.escape(material_constraint)}\b", product_text):
                     continue
 
-                # Brand filter
+                # Brand filter (word boundary)
                 brand_constraint = (constraints_dict.get("brand") or "").lower()
-                if brand_constraint and brand_constraint not in product_text:
+                if brand_constraint and not re.search(rf"\b{re.escape(brand_constraint)}\b", product_text):
                     continue
 
                 filtered_results.append(r)
 
             raw_results = filtered_results[:request.top_k]
 
-        # Step 6: Format results
+        # Step 6: Format results with rescaled scores
+        # Raw cosine similarity from text-embedding-3-small is typically 0.30-0.70
+        # Rescale to 60-99% for a more intuitive match percentage
+        def rescale_score(raw: float) -> float:
+            floor, ceiling = 0.30, 0.70
+            clamped = max(floor, min(ceiling, raw))
+            return 0.60 + (clamped - floor) / (ceiling - floor) * 0.39
+
         results = [
             SearchResult(
                 product_id=r["product_id"],
@@ -191,7 +199,7 @@ async def search_products(request: SearchRequest):
                 permalink=r.get("permalink"),
                 categories=r.get("categories", []),
                 stock_status=r.get("stock_status", "instock"),
-                score=r.get("score", 0.0),
+                score=round(rescale_score(r.get("score", 0.0)), 2),
             )
             for r in raw_results
         ]
