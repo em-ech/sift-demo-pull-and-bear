@@ -118,25 +118,67 @@ async def search_products(request: SearchRequest):
             constraints_dict = query_result.constraints.to_dict()
             embedding_query = query_result.embedding_query
 
-        # Step 4: Vector search with tenant filter
+        # Step 4: Determine if we need extra candidates for post-filtering
+        has_filters = constraints_dict and any(
+            constraints_dict.get(k)
+            for k in ("budget_max", "budget_min", "color", "category", "material", "brand")
+        )
+        fetch_k = request.top_k * 3 if has_filters else request.top_k
+
+        # Vector search with tenant filter
         raw_results = vector_service.search(
             query=embedding_query,
             tenant_id=request.tenant_id,
-            top_k=request.top_k,
+            top_k=fetch_k,
         )
 
-        # Step 5: Apply additional filtering if constraints present
-        # (Price filtering example - for more, add payload indexes in Qdrant)
-        if constraints_dict and (constraints_dict.get("budget_max") or constraints_dict.get("budget_min")):
+        # Step 5: Apply constraint-based filtering
+        if constraints_dict and has_filters:
             filtered_results = []
             for r in raw_results:
+                # Budget filter
                 price = r.get("price", 0)
                 if constraints_dict.get("budget_max") and price > constraints_dict["budget_max"]:
                     continue
                 if constraints_dict.get("budget_min") and price < constraints_dict["budget_min"]:
                     continue
+
+                # Build a searchable text blob from product fields
+                name_lower = (r.get("name") or "").lower()
+                desc_lower = (r.get("description") or "").lower()
+                product_text = f"{name_lower} {desc_lower}"
+                cats_lower = [c.lower() for c in r.get("categories", [])]
+
+                # Category filter
+                cat_constraint = (constraints_dict.get("category") or "").lower()
+                if cat_constraint:
+                    cat_match = (
+                        cat_constraint in product_text
+                        or any(cat_constraint in c for c in cats_lower)
+                        # Handle plural/singular: "hoodie" matches "hoodies"
+                        or any(c.startswith(cat_constraint) or cat_constraint.startswith(c) for c in cats_lower)
+                    )
+                    if not cat_match:
+                        continue
+
+                # Color filter
+                color_constraint = (constraints_dict.get("color") or "").lower()
+                if color_constraint and color_constraint not in product_text:
+                    continue
+
+                # Material filter
+                material_constraint = (constraints_dict.get("material") or "").lower()
+                if material_constraint and material_constraint not in product_text:
+                    continue
+
+                # Brand filter
+                brand_constraint = (constraints_dict.get("brand") or "").lower()
+                if brand_constraint and brand_constraint not in product_text:
+                    continue
+
                 filtered_results.append(r)
-            raw_results = filtered_results
+
+            raw_results = filtered_results[:request.top_k]
 
         # Step 6: Format results
         results = [
