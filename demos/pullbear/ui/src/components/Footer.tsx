@@ -148,7 +148,7 @@ export function Footer() {
             PULL&amp;BEAR
           </span>
           <p className="text-[10px] text-[var(--color-text-light)] tracking-[0.1em] uppercase text-center">
-            Demo storefront powered by Sift AI &mdash; Product data for educational purposes
+            Demo storefront powered by <span style={{ color: "#2e69c7" }}>Sift</span>Search &mdash; Product data for educational purposes
           </p>
         </div>
       </div>

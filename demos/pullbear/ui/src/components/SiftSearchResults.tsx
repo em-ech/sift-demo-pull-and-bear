@@ -55,7 +55,7 @@ export function SiftSearchResults({
           </p>
         </div>
         <span className="text-[10px] tracking-[0.1em] uppercase text-[var(--color-text-muted)]">
-          Powered by Sift AI
+          Powered by <span style={{ color: "#2e69c7" }}>Sift</span>Search
         </span>
       </div>
 

@@ -230,7 +230,7 @@ export function Header() {
 
               <div className="mt-8 pt-6 border-t border-[var(--color-border)]">
                 <p className="text-[10px] tracking-[0.15em] uppercase text-[var(--color-text-light)] mb-4">
-                  Powered by Sift AI
+                  Powered by <span style={{ color: "#2e69c7" }}>Sift</span>Search
                 </p>
                 <ul className="space-y-1">
                   <li>
@@ -239,7 +239,7 @@ export function Header() {
                       className="block py-2 text-xs tracking-[0.1em] uppercase text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors"
                       onClick={() => setIsMenuOpen(false)}
                     >
-                      AI Search
+                      <span style={{ color: "#2e69c7" }}>Sift</span>Search
                     </Link>
                   </li>
                   <li>
@@ -248,7 +248,7 @@ export function Header() {
                       className="block py-2 text-xs tracking-[0.1em] uppercase text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors"
                       onClick={() => setIsMenuOpen(false)}
                     >
-                      Chat Assistant
+                      <span style={{ color: "#2e69c7" }}>Sift</span>Chat
                     </Link>
                   </li>
                 </ul>

@@ -216,7 +216,7 @@ function ShopPageContent() {
             />
             <span className="text-[var(--color-text-muted)]">
               {healthStatus?.python
-                ? "Sift AI Connected"
+                ? "SiftSearch Connected"
                 : healthStatus === null
                 ? "Checking..."
                 : "AI Offline"}

@@ -24,18 +24,18 @@ export function ChatPanel({ onProductsFound }: ChatPanelProps) {
   ]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    scrollToBottom();
+    const container = messagesContainerRef.current;
+    if (container) {
+      container.scrollTop = container.scrollHeight;
+    }
   }, [messages]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    e.stopPropagation();
     if (!input.trim() || isLoading) return;
 
     const userMessage = input.trim();
@@ -90,7 +90,7 @@ export function ChatPanel({ onProductsFound }: ChatPanelProps) {
   ];
 
   return (
-    <div className="flex flex-col h-[600px] bg-white border border-[var(--color-border)] overflow-hidden">
+    <div className="flex flex-col h-[500px] bg-white border border-[var(--color-border)] overflow-hidden">
       {/* Header */}
       <div className="px-5 py-4 border-b border-[var(--color-border)]">
         <div className="flex items-center gap-3">
@@ -111,7 +111,7 @@ export function ChatPanel({ onProductsFound }: ChatPanelProps) {
           </div>
           <div>
             <h3 className="text-xs font-bold tracking-[0.08em] uppercase">
-              Sift AI Assistant
+              <span style={{ color: "#2e69c7" }}>Sift</span>Chat Assistant
             </h3>
             <p className="text-[10px] text-[var(--color-text-muted)] tracking-wide">
               Powered by RAG &mdash; Real products only
@@ -121,7 +121,7 @@ export function ChatPanel({ onProductsFound }: ChatPanelProps) {
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-5 space-y-4">
+      <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-5 space-y-4">
         {messages.map((message, index) => (
           <div
             key={index}
@@ -202,7 +202,6 @@ export function ChatPanel({ onProductsFound }: ChatPanelProps) {
             </div>
           </div>
         ))}
-        <div ref={messagesEndRef} />
       </div>
 
       {/* Suggested Questions */}

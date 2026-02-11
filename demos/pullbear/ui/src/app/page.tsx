@@ -111,7 +111,7 @@ export default async function HomePage() {
         <div className="w-[90%] mx-auto">
           <div className="max-w-3xl mx-auto text-center">
             <p className="text-[10px] font-bold tracking-[0.2em] uppercase text-[var(--color-text-muted)] mb-4">
-              Powered by Sift AI
+              Powered by <span style={{ color: "#2e69c7" }}>Sift</span>Search
             </p>
             <h2 className="text-2xl sm:text-3xl font-bold tracking-[0.08em] mb-4">
               FIND YOUR STYLE
@@ -160,7 +160,7 @@ export default async function HomePage() {
                   </svg>
                 </div>
                 <p className="text-[10px] font-bold tracking-[0.1em] uppercase">
-                  Sift AI
+                  <span style={{ color: "#2e69c7" }}>Sift</span>Search
                 </p>
               </Link>
               <Link href="/shop?mode=chat" className="text-center group">
@@ -180,13 +180,13 @@ export default async function HomePage() {
                   </svg>
                 </div>
                 <p className="text-[10px] font-bold tracking-[0.1em] uppercase">
-                  Chat
+                  <span style={{ color: "#2e69c7" }}>Sift</span>Chat
                 </p>
               </Link>
             </div>
 
             <Link href="/shop?mode=sift" className="btn btn-primary">
-              Try AI Search
+              Try <span style={{ color: "#2e69c7" }}>Sift</span>Search
             </Link>
           </div>
         </div>

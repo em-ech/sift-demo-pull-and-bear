@@ -8,7 +8,7 @@ interface SearchModeToggleProps {
   disabled?: boolean;
 }
 
-const modes: { id: SearchMode; label: string; description: string }[] = [
+const modes: { id: SearchMode; label: React.ReactNode; description: string }[] = [
   {
     id: "regular",
     label: "Regular",
@@ -16,12 +16,12 @@ const modes: { id: SearchMode; label: string; description: string }[] = [
   },
   {
     id: "sift",
-    label: "Sift AI",
+    label: <><span style={{ color: "#2e69c7" }}>Sift</span>Search</>,
     description: "Semantic search",
   },
   {
     id: "chat",
-    label: "Chat",
+    label: <><span style={{ color: "#2e69c7" }}>Sift</span>Chat</>,
     description: "Ask questions",
   },
 ];

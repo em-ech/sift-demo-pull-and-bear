@@ -11,10 +11,10 @@ interface SearchBarProps {
   aiAvailable?: boolean;
 }
 
-const modes: { id: SearchMode; label: string }[] = [
+const modes: { id: SearchMode; label: React.ReactNode }[] = [
   { id: "regular", label: "Search" },
-  { id: "sift", label: "Sift" },
-  { id: "chat", label: "Chat" },
+  { id: "sift", label: <><span style={{ color: "#2e69c7" }}>Sift</span>Search</> },
+  { id: "chat", label: <><span style={{ color: "#2e69c7" }}>Sift</span>Chat</> },
 ];
 
 const placeholders: Record<SearchMode, string> = {
@@ -53,17 +53,6 @@ export function SearchBar({
             disabled={m.id !== "regular" && !aiAvailable}
           >
             {m.label}
-            {m.id === "sift" && (
-              <span
-                className={`ml-1.5 text-[8px] px-1 py-0.5 font-bold tracking-wider ${
-                  mode === "sift"
-                    ? "bg-white text-black"
-                    : "bg-black text-white"
-                }`}
-              >
-                AI
-              </span>
-            )}
           </button>
         ))}
       </div>
